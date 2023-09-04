@@ -45,7 +45,7 @@ app.post('/add-reminder', async (req, res) => {
             to,
             subject,
             text,
-            dueTime: new Date(dueTime), // Parse dueTime as a Date object
+            dueTime: new Date(dueTime).toISOString(), // Parse dueTime and convert to ISO format
         });
 
         res.status(200).json({ message: 'Reminder added successfully.' });
@@ -62,7 +62,7 @@ schedule.scheduleJob('0 * * * *', async () => {
         const now = new Date();
         const querySnapshot = await db
             .collection('reminders')
-            .where('dueTime', '<=', now)
+            .where('dueTime', '<=', now.toISOString()) // Compare in ISO format
             .get();
 
         const dueReminders = [];
