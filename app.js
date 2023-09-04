@@ -39,13 +39,19 @@ app.use(express.json());
 app.post('/add-reminder', async (req, res) => {
     const { to, subject, text, dueTime } = req.body;
 
+    // Validate the dueTime format
+    const parsedDueTime = new Date(dueTime);
+    if (isNaN(parsedDueTime)) {
+        return res.status(400).json({ error: 'Invalid dueTime format.' });
+    }
+
     try {
         // Add a new document to the 'reminders' collection
         await db.collection('reminders').add({
             to,
             subject,
             text,
-            dueTime: new Date(dueTime).toISOString(), // Parse dueTime and convert to ISO format
+            dueTime: parsedDueTime.toISOString(), // Convert to ISO format
         });
 
         res.status(200).json({ message: 'Reminder added successfully.' });
