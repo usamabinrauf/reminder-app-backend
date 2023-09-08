@@ -1,83 +1,57 @@
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
-const dotenv = require('dotenv');
 const sgMail = require('@sendgrid/mail');
+const dotenv = require('dotenv');
+const axios = require('axios');
 const schedule = require('node-schedule');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// Initialize SendGrid with your API key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const mockApiUrl = 'https://64d8e4865f9bf5b879cea997.mockapi.io/reminders'; // Replace with your Mock API URL
 
 app.use(cors());
 app.use(express.json());
 
-app.post('/add-reminder', async (req, res) => {
-    const { to, subject, text, dueTime } = req.body;
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+
+app.post('/send-email', async (req, res) => {
+    const { to, subject, text } = req.body;
+
+    const emailData = {
+        to,
+        from: process.env.VERIFIED_EMAIL,
+        subject,
+        text,
+    };
 
     try {
-        // Implement validation for the dueTime format (you can customize this)
-        const parsedDueTime = new Date(dueTime);
-        if (isNaN(parsedDueTime)) {
-            return res.status(400).json({ error: 'Invalid dueTime format. Please use a valid date and time.' });
-        }
-
-        // Send a POST request to the Mock API to schedule the reminder
-        await axios.post('https://64d8e4865f9bf5b879cea997.mockapi.io/reminders', {
-            to,
-            subject,
-            text,
-            dueTime: parsedDueTime.toISOString(), // Convert to ISO format
-        });
-
-        res.status(200).json({ message: 'Reminder scheduled successfully.' });
+        // Use the promise returned by sgMail.send to handle success and error
+        await sgMail.send(emailData);
+        res.status(200).json({ message: 'Email sent successfully.' });
     } catch (error) {
-        console.error('Error scheduling reminder:', error);
-        res.status(500).json({ error: 'An error occurred while scheduling the reminder.' });
+        console.error('Error sending email:', error);
+
+        // Handle the error by sending an error response to the client
+        res.status(500).json({ error: 'An error occurred while sending the email.' });
     }
 });
 
-// Schedule a recurring job to send reminders (if needed)
+// Schedule a recurring job to check for pending emails and send them
 schedule.scheduleJob('0 * * * *', async () => {
     try {
-        // Implement logic to check for due reminders in the Mock API
-        // For example, send a GET request to the Mock API to fetch due reminders
-        const response = await axios.get('https://64d8e4865f9bf5b879cea997.mockapi.io/reminders');
+        // Retrieve pending emails from the Mock API
+        const response = await axios.get(mockApiUrl);
+        const pendingEmails = response.data.filter((email) => email.status === 'pending');
 
-        const dueReminders = response.data.filter((reminder) => {
-            // Implement logic to determine if a reminder is due
-            const dueTime = new Date(reminder.dueTime).getTime();
-            const now = Date.now();
-            return dueTime <= now;
-        });
-
-        // Send emails using SendGrid
-        for (const reminder of dueReminders) {
-            const { to, subject, text } = reminder;
-
-            const emailData = {
-                to,
-                from: process.env.SENDGRID_SENDER_EMAIL, // Replace with your SendGrid sender email
-                subject,
-                text,
-                // Add other email properties as needed
-            };
-
-            // Send the email using SendGrid
-            await sgMail.send(emailData);
-
-            // After sending the email, you can optionally delete the reminder
-            // Implement logic to delete the reminder from the Mock API
-            await axios.delete(`https://64d8e4865f9bf5b879cea997.mockapi.io/reminders/${reminder.id}`);
+        for (const email of pendingEmails) {
+            await sgMail.send(email);
+            // Update the status of the email in the Mock API to 'sent'
+            await axios.put(`${mockApiUrl}/${email.id}`, { status: 'sent' });
         }
-
-        console.log('Sent reminders (if any)');
     } catch (error) {
-        console.error('Error sending reminders:', error);
+        console.error('Error sending pending emails:', error);
     }
 });
 
