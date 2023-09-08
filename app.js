@@ -13,7 +13,7 @@ app.use(express.json());
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
 // Function to send email
-const sendEmailReminder = async () => {
+const sendEmailReminder = async (req) => {
     const { to, subject, text } = req.body;
 
     const emailData = {
