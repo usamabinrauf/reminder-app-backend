@@ -1,15 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const sgMail = require('@sendgrid/mail');
-const dotenv = require('dotenv');
-const axios = require('axios');
-const schedule = require('node-schedule');
-
-dotenv.config();
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const mockApiUrl = 'https://64d8e4865f9bf5b879cea997.mockapi.io/reminders'; // Replace with your Mock API URL
 
 app.use(cors());
 app.use(express.json());
@@ -35,23 +30,6 @@ app.post('/send-email', async (req, res) => {
 
         // Handle the error by sending an error response to the client
         res.status(500).json({ error: 'An error occurred while sending the email.' });
-    }
-});
-
-// Schedule a recurring job to check for pending emails and send them
-schedule.scheduleJob('0 * * * *', async () => {
-    try {
-        // Retrieve pending emails from the Mock API
-        const response = await axios.get(mockApiUrl);
-        const pendingEmails = response.data.filter((email) => email.status === 'pending');
-
-        for (const email of pendingEmails) {
-            await sgMail.send(email);
-            // Update the status of the email in the Mock API to 'sent'
-            await axios.put(`${mockApiUrl}/${email.id}`, { status: 'sent' });
-        }
-    } catch (error) {
-        console.error('Error sending pending emails:', error);
     }
 });
 
