@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const sgMail = require('@sendgrid/mail');
+const cron = require('node-cron'); // Import node-cron
 require('dotenv').config();
 
 const app = express();
@@ -11,7 +12,8 @@ app.use(express.json());
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 
-app.post('/send-email', async (req, res) => {
+// Function to send email
+const sendEmailReminder = async () => {
     const { to, subject, text } = req.body;
 
     const emailData = {
@@ -24,13 +26,15 @@ app.post('/send-email', async (req, res) => {
     try {
         // Use the promise returned by sgMail.send to handle success and error
         await sgMail.send(emailData);
-        res.status(200).json({ message: 'Email sent successfully.' });
+        console.log('Email sent successfully.');
     } catch (error) {
         console.error('Error sending email:', error);
-
-        // Handle the error by sending an error response to the client
-        res.status(500).json({ error: 'An error occurred while sending the email.' });
     }
+};
+
+// Schedule the email sending task to run every day at 8:00 AM
+cron.schedule('* * * * *', () => {
+    sendEmailReminder();
 });
 
 app.listen(PORT, () => {
