@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const dotenv = require('dotenv');
-const schedule = require('node-schedule');
 const sgMail = require('@sendgrid/mail');
+const schedule = require('node-schedule');
 
 dotenv.config();
 
@@ -20,12 +20,18 @@ app.post('/add-reminder', async (req, res) => {
     const { to, subject, text, dueTime } = req.body;
 
     try {
+        // Implement validation for the dueTime format (you can customize this)
+        const parsedDueTime = new Date(dueTime);
+        if (isNaN(parsedDueTime)) {
+            return res.status(400).json({ error: 'Invalid dueTime format. Please use a valid date and time.' });
+        }
+
         // Send a POST request to the Mock API to schedule the reminder
         await axios.post('https://64d8e4865f9bf5b879cea997.mockapi.io/reminders', {
             to,
             subject,
             text,
-            dueTime,
+            dueTime: parsedDueTime.toISOString(), // Convert to ISO format
         });
 
         res.status(200).json({ message: 'Reminder scheduled successfully.' });
