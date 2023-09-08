@@ -1,15 +1,16 @@
 const express = require('express');
 const cors = require('cors');
-const sgMail = require('@sendgrid/mail');
 const axios = require('axios');
 const dotenv = require('dotenv');
 const schedule = require('node-schedule');
+const sgMail = require('@sendgrid/mail');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Initialize SendGrid with your API key
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 app.use(cors());
@@ -19,57 +20,60 @@ app.post('/add-reminder', async (req, res) => {
     const { to, subject, text, dueTime } = req.body;
 
     try {
-        // Schedule the reminder and simulate adding it to a database
-        await scheduleReminder(to, subject, text, dueTime);
+        // Send a POST request to the Mock API to schedule the reminder
+        await axios.post('https://64d8e4865f9bf5b879cea997.mockapi.io/reminders', {
+            to,
+            subject,
+            text,
+            dueTime,
+        });
 
-        res.status(200).json({ message: 'Reminder added successfully.' });
+        res.status(200).json({ message: 'Reminder scheduled successfully.' });
     } catch (error) {
-        console.error('Error adding reminder:', error);
-        res.status(500).json({ error: 'An error occurred while adding the reminder.' });
+        console.error('Error scheduling reminder:', error);
+        res.status(500).json({ error: 'An error occurred while scheduling the reminder.' });
     }
 });
 
-// Function to schedule a reminder
-async function scheduleReminder(to, subject, text, dueTime) {
-    const now = new Date();
-    const deadline = new Date(dueTime);
-
-    if (deadline <= now) {
-        console.log('The deadline has already passed.');
-        return;
-    }
-
-    // Calculate the delay for sending the reminder
-    const delay = deadline - now;
-
-    // Schedule a job to send the reminder email
-    schedule.scheduleJob(deadline, async () => {
-        const emailData = {
-            to,
-            from: process.env.VERIFIED_EMAIL,
-            subject,
-            text,
-        };
-
-        try {
-            // Simulate sending the email
-            await sendEmail(emailData);
-        } catch (error) {
-            console.error('Error sending email:', error);
-        }
-    });
-}
-
-// Function to simulate sending an email
-async function sendEmail(emailData) {
+// Schedule a recurring job to send reminders (if needed)
+schedule.scheduleJob('0 * * * *', async () => {
     try {
-        // Simulate sending the email via a mock API
-        await axios.post('https://64d8e4865f9bf5b879cea997.mockapi.io/reminders', emailData);
-        console.log('Email sent successfully.');
+        // Implement logic to check for due reminders in the Mock API
+        // For example, send a GET request to the Mock API to fetch due reminders
+        const response = await axios.get('https://64d8e4865f9bf5b879cea997.mockapi.io/reminders');
+
+        const dueReminders = response.data.filter((reminder) => {
+            // Implement logic to determine if a reminder is due
+            const dueTime = new Date(reminder.dueTime).getTime();
+            const now = Date.now();
+            return dueTime <= now;
+        });
+
+        // Send emails using SendGrid
+        for (const reminder of dueReminders) {
+            const { to, subject, text } = reminder;
+
+            const emailData = {
+                to,
+                from: process.env.SENDGRID_SENDER_EMAIL, // Replace with your SendGrid sender email
+                subject,
+                text,
+                // Add other email properties as needed
+            };
+
+            // Send the email using SendGrid
+            await sgMail.send(emailData);
+
+            // After sending the email, you can optionally delete the reminder
+            // Implement logic to delete the reminder from the Mock API
+            await axios.delete(`https://64d8e4865f9bf5b879cea997.mockapi.io/reminders/${reminder.id}`);
+        }
+
+        console.log('Sent reminders (if any)');
     } catch (error) {
-        console.error('Error sending email:', error);
+        console.error('Error sending reminders:', error);
     }
-}
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
