@@ -75,5 +75,6 @@ app.post('/send-email', async (req, res) => {
 });
 
 app.listen(PORT, () => {
+    console.log(Date.now());
     console.log(`Server is running on port ${PORT}`);
 });
